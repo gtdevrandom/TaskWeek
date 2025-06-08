@@ -6,39 +6,44 @@
   <title>Programme Hebdomadaire</title>
   <link rel="manifest" href="manifest.json" />
   <style>
+    /* Dark mode */
     body {
       font-family: Arial, sans-serif;
       max-width: 600px;
       margin: auto;
       padding: 20px;
-      background: #f9fafb;
+      background: #121212;
+      color: #e0e0e0;
+      user-select: none;
     }
     h1 {
       text-align: center;
-      margin-bottom: 20px;
+      margin-bottom: 10px;
+      font-weight: 700;
     }
-    .tabs {
+    .day-nav {
       display: flex;
       justify-content: space-between;
-      margin-bottom: 15px;
-      flex-wrap: wrap;
-      gap: 5px;
+      align-items: center;
+      margin-bottom: 20px;
     }
-    .tab {
-      flex: 1 1 12%;
-      padding: 10px;
-      border-radius: 5px;
+    .day-nav button {
+      background: none;
       border: none;
+      color: #8ab4f8;
+      font-size: 2rem;
       cursor: pointer;
-      background-color: #e2e8f0;
-      color: #000;
-      font-weight: bold;
-      text-align: center;
       user-select: none;
+      padding: 0 10px;
+      transition: color 0.2s ease;
     }
-    .tab.active {
-      background-color: #2f855a;
-      color: white;
+    .day-nav button:hover {
+      color: #aecbfa;
+    }
+    .day-title {
+      font-size: 1.5rem;
+      font-weight: 600;
+      user-select: text;
     }
     form {
       display: flex;
@@ -51,13 +56,20 @@
       flex: 1 1 50%;
       padding: 8px;
       border-radius: 5px;
-      border: 1px solid #ccc;
+      border: 1px solid #444;
+      background-color: #222;
+      color: #eee;
       min-width: 150px;
+    }
+    form input[type="text"]::placeholder {
+      color: #888;
     }
     form select, form input[type="time"] {
       padding: 8px;
       border-radius: 5px;
-      border: 1px solid #ccc;
+      border: 1px solid #444;
+      background-color: #222;
+      color: #eee;
       min-width: 100px;
     }
     form button {
@@ -69,6 +81,10 @@
       cursor: pointer;
       font-weight: bold;
       min-width: 100px;
+      transition: background-color 0.3s ease;
+    }
+    form button:hover {
+      background-color: #276747;
     }
     ul {
       list-style: none;
@@ -82,210 +98,219 @@
       border-radius: 5px;
       margin-bottom: 8px;
       cursor: pointer;
-      color: black;
+      color: #e0e0e0;
       user-select: none;
+      transition: background-color 0.3s ease;
     }
     li.task.done {
-      background-color: #a0aec0 !important;
-      color: #718096 !important;
+      background-color: #444 !important;
+      color: #777 !important;
       text-decoration: line-through;
       cursor: default;
     }
     .importance-low {
-      background-color: #a0d468;
+      background-color: #3a6e3a;
     }
     .importance-medium {
-      background-color: #ffce54;
+      background-color: #a87a0d;
     }
     .importance-high {
-      background-color: #ed5565;
+      background-color: #b93131;
       color: white;
     }
     @media (max-width: 480px) {
       form input[type="text"] {
         flex: 1 1 100%;
       }
-      .tab {
-        flex: 1 1 28%;
-      }
     }
   </style>
 </head>
 <body>
   <h1>Programme Hebdomadaire</h1>
-  <div class="tabs" role="tablist" aria-label="Jours de la semaine">
-    <!-- Boutons jours ici -->
+  <div class="day-nav" aria-label="Navigation entre jours">
+    <button id="prevDay" aria-label="Jour précédent" title="Jour précédent">⬅️</button>
+    <div class="day-title" id="dayTitle" aria-live="polite" aria-atomic="true"></div>
+    <button id="nextDay" aria-label="Jour suivant" title="Jour suivant">➡️</button>
   </div>
+
   <form id="taskForm" aria-label="Ajouter une tâche">
-    <input type="text" id="taskText" placeholder="Nouvelle tâche" aria-label="Texte de la tâche" required />
+    <input type="text" id="taskText" placeholder="Nouvelle tâche" aria-label="Texte de la tâche" required autocomplete="off" />
     <select id="taskImportance" aria-label="Importance de la tâche">
       <option value="low">Faible</option>
-      <option value="medium">Moyenne</option>
+      <option value="medium" selected>Moyenne</option>
       <option value="high">Haute</option>
     </select>
     <input type="time" id="taskTime" aria-label="Heure facultative de la tâche" />
     <button type="submit">Ajouter</button>
   </form>
+
   <ul id="taskList" aria-live="polite" aria-relevant="additions removals"></ul>
 
-  <script>
-    const days = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche'];
-    let currentDayIndex = 0;
-    let tasks = JSON.parse(localStorage.getItem('tasks')) || Array(7).fill(null).map(() => []);
+<script>
+  const days = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche'];
+  // On part du lundi de la semaine courante pour afficher 7 jours dynamiques
+  const now = new Date();
+  const dayOfWeek = now.getDay(); // 0 dimanche ... 6 samedi
+  // Calcule date du lundi de la semaine
+  const diffToMonday = (dayOfWeek === 0 ? -6 : 1 - dayOfWeek);
+  const mondayDate = new Date(now);
+  mondayDate.setHours(0,0,0,0);
+  mondayDate.setDate(now.getDate() + diffToMonday);
 
-    // Save tasks in localStorage
-    function saveTasks() {
-      localStorage.setItem('tasks', JSON.stringify(tasks));
-    }
+  let currentDayIndex = 0;
+  let tasks = JSON.parse(localStorage.getItem('tasks')) || Array(7).fill(null).map(() => []);
 
-    // Create tabs
-    const tabsContainer = document.querySelector('.tabs');
-    days.forEach((day, i) => {
-      const btn = document.createElement('button');
-      btn.className = 'tab' + (i === currentDayIndex ? ' active' : '');
-      btn.textContent = day;
-      btn.setAttribute('role', 'tab');
-      btn.setAttribute('aria-selected', i === currentDayIndex);
-      btn.addEventListener('click', () => {
-        if (currentDayIndex !== i) {
-          currentDayIndex = i;
-          updateTabs();
-          renderTasks();
-        }
+  const dayTitle = document.getElementById('dayTitle');
+  const taskList = document.getElementById('taskList');
+
+  // Save tasks to localStorage
+  function saveTasks() {
+    localStorage.setItem('tasks', JSON.stringify(tasks));
+  }
+
+  // Format date en "10 Juin"
+  function formatDate(date) {
+    return date.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' });
+  }
+
+  // Affiche titre jour + date
+  function renderDayTitle() {
+    const date = new Date(mondayDate);
+    date.setDate(mondayDate.getDate() + currentDayIndex);
+    dayTitle.textContent = `${days[currentDayIndex]} ${formatDate(date)}`;
+  }
+
+  // Render tasks list
+  const importanceClasses = {
+    low: 'importance-low',
+    medium: 'importance-medium',
+    high: 'importance-high',
+  };
+  function renderTasks() {
+    taskList.innerHTML = '';
+    const dayTasks = tasks[currentDayIndex] || [];
+    dayTasks.forEach(task => {
+      const li = document.createElement('li');
+      li.className = 'task ' + importanceClasses[task.importance] + (task.done ? ' done' : '');
+      li.textContent = task.text + (task.time ? ` (${task.time})` : '');
+      li.title = 'Clique pour cocher/décocher, double-clic pour rappel notification';
+      li.tabIndex = 0;
+      li.setAttribute('role', 'checkbox');
+      li.setAttribute('aria-checked', task.done);
+      li.addEventListener('click', () => {
+        toggleDone(task.id);
       });
-      tabsContainer.appendChild(btn);
+      li.addEventListener('dblclick', () => {
+        notify(task);
+      });
+      taskList.appendChild(li);
     });
+  }
 
-    function updateTabs() {
-      const btns = tabsContainer.querySelectorAll('.tab');
-      btns.forEach((btn, i) => {
-        btn.classList.toggle('active', i === currentDayIndex);
-        btn.setAttribute('aria-selected', i === currentDayIndex);
-      });
-    }
+  // Add task event
+  const form = document.getElementById('taskForm');
+  form.addEventListener('submit', e => {
+    e.preventDefault();
+    const text = document.getElementById('taskText').value.trim();
+    if (!text) return;
+    const importance = document.getElementById('taskImportance').value;
+    const time = document.getElementById('taskTime').value;
 
-    // Colors importance mapping
-    const importanceClasses = {
-      low: 'importance-low',
-      medium: 'importance-medium',
-      high: 'importance-high',
+    const newTask = {
+      id: Date.now() + Math.random(),
+      text,
+      importance,
+      time,
+      done: false,
     };
 
-    // Render tasks
-    const taskList = document.getElementById('taskList');
-    function renderTasks() {
-      taskList.innerHTML = '';
-      const dayTasks = tasks[currentDayIndex] || [];
-      dayTasks.forEach(task => {
-        const li = document.createElement('li');
-        li.className = 'task ' + importanceClasses[task.importance] + (task.done ? ' done' : '');
-        li.textContent = task.text + (task.time ? ` (${task.time})` : '');
-        li.title = 'Clique pour cocher/décocher, double-clic pour rappel notification';
-        li.tabIndex = 0;
-        li.setAttribute('role', 'checkbox');
-        li.setAttribute('aria-checked', task.done);
-        li.addEventListener('click', () => {
-          toggleDone(task.id);
-        });
-        li.addEventListener('dblclick', () => {
-          notify(task);
-        });
-        taskList.appendChild(li);
-      });
-    }
-
-    // Add task
-    const form = document.getElementById('taskForm');
-    form.addEventListener('submit', e => {
-      e.preventDefault();
-      const text = document.getElementById('taskText').value.trim();
-      if (!text) return;
-      const importance = document.getElementById('taskImportance').value;
-      const time = document.getElementById('taskTime').value;
-
-      const newTask = {
-        id: Date.now() + Math.random(),
-        text,
-        importance,
-        time,
-        done: false,
-      };
-
-      tasks[currentDayIndex].push(newTask);
-      saveTasks();
-      renderTasks();
-
-      form.reset();
-      document.getElementById('taskText').focus();
-    });
-
-    // Toggle done
-    function toggleDone(id) {
-      const dayTasks = tasks[currentDayIndex];
-      const task = dayTasks.find(t => t.id === id);
-      if (!task) return;
-      task.done = !task.done;
-      saveTasks();
-      renderTasks();
-    }
-
-    // Notification
-    function notify(task) {
-      if (!('Notification' in window)) return alert('Notifications non supportées par ce navigateur.');
-      if (Notification.permission === 'granted') {
-        new Notification(`Rappel tâche: ${task.text}`, {
-          body: task.time ? `Heure: ${task.time}` : '',
-        });
-      } else if (Notification.permission !== 'denied') {
-        Notification.requestPermission().then(permission => {
-          if (permission === 'granted') {
-            notify(task);
-          }
-        });
-      }
-    }
-
-    // Report non faits d'hier
-    function reportUnDoneTasks() {
-      const todayIndex = new Date().getDay() - 1; // lundi=0 (attention dimanche=0)
-      if (todayIndex < 0 || todayIndex > 6) return; // ignore dimanche ou hors plage
-
-      const yesterdayIndex = todayIndex === 0 ? 6 : todayIndex - 1;
-
-      const yesterdayTasks = tasks[yesterdayIndex];
-      if (!yesterdayTasks) return;
-
-      const undoneTasks = yesterdayTasks.filter(t => !t.done);
-      if (undoneTasks.length === 0) return;
-
-      undoneTasks.forEach(t => {
-        // Augmente importance
-        if (t.importance === 'low') t.importance = 'medium';
-        else if (t.importance === 'medium') t.importance = 'high';
-        // Reset done
-        t.done = false;
-        // Push to today
-        tasks[todayIndex].push({...t, id: Date.now() + Math.random()});
-      });
-
-      saveTasks();
-    }
-
-    // Initialisation
-    reportUnDoneTasks();
+    tasks[currentDayIndex].push(newTask);
+    saveTasks();
     renderTasks();
 
-    // Request Notification permission on load
-    if ('Notification' in window && Notification.permission !== 'granted') {
-      Notification.requestPermission();
-    }
+    form.reset();
+    document.getElementById('taskText').focus();
+  });
 
-    // Register Service Worker
-    if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('sw.js').then(() => {
-        console.log('Service Worker enregistré');
-      }).catch(console.error);
+  // Toggle done state
+  function toggleDone(id) {
+    const dayTasks = tasks[currentDayIndex];
+    const task = dayTasks.find(t => t.id === id);
+    if (!task) return;
+    task.done = !task.done;
+    saveTasks();
+    renderTasks();
+  }
+
+  // Notifications
+  function notify(task) {
+    if (!('Notification' in window)) return alert('Notifications non supportées par ce navigateur.');
+    if (Notification.permission === 'granted') {
+      new Notification(`Rappel tâche: ${task.text}`, {
+        body: task.time ? `Heure: ${task.time}` : '',
+      });
+    } else if (Notification.permission !== 'denied') {
+      Notification.requestPermission().then(permission => {
+        if (permission === 'granted') {
+          notify(task);
+        }
+      });
     }
-  </script>
+  }
+
+  // Report non faits d'hier vers aujourd'hui avec importance augmentée
+  function reportUnDoneTasks() {
+    // Trouver le jour réel pour gérer report
+    const today = new Date();
+    today.setHours(0,0,0,0);
+    const todayIndex = Math.floor((today - mondayDate) / (1000*60*60*24));
+    if (todayIndex < 0 || todayIndex >= 7) return; // hors semaine affichée
+
+    const yesterdayIndex = todayIndex === 0 ? 6 : todayIndex -1;
+    const yesterdayTasks = tasks[yesterdayIndex];
+    if (!yesterdayTasks) return;
+
+    const undoneTasks = yesterdayTasks.filter(t => !t.done);
+    if (undoneTasks.length === 0) return;
+
+    undoneTasks.forEach(t => {
+      if (t.importance === 'low') t.importance = 'medium';
+      else if (t.importance === 'medium') t.importance = 'high';
+      t.done = false;
+      tasks[todayIndex].push({...t, id: Date.now() + Math.random()});
+    });
+
+    saveTasks();
+  }
+
+  // Flèches navigation
+  document.getElementById('prevDay').addEventListener('click', () => {
+    currentDayIndex = (currentDayIndex + 6) % 7; // recule d’un jour (modulo 7)
+    renderDayTitle();
+    renderTasks();
+  });
+  document.getElementById('nextDay').addEventListener('click', () => {
+    currentDayIndex = (currentDayIndex + 1) % 7; // avance d’un jour (modulo 7)
+    renderDayTitle();
+    renderTasks();
+  });
+
+  // Initialisation
+  reportUnDoneTasks();
+  renderDayTitle();
+  renderTasks();
+
+  // Demande notification permission au chargement
+  if ('Notification' in window && Notification.permission !== 'granted') {
+    Notification.requestPermission();
+  }
+
+  // Service worker register
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('sw.js').then(() => {
+      console.log('Service Worker enregistré');
+    }).catch(console.error);
+  }
+</script>
 </body>
 </html>
