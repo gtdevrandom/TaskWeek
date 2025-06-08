@@ -147,40 +147,58 @@
   <ul id="taskList" aria-live="polite" aria-relevant="additions removals"></ul>
 
 <script>
-  const days = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche'];
-  // On part du lundi de la semaine courante pour afficher 7 jours dynamiques
-  const now = new Date();
-  const dayOfWeek = now.getDay(); // 0 dimanche ... 6 samedi
-  // Calcule date du lundi de la semaine
-  const diffToMonday = (dayOfWeek === 0 ? -6 : 1 - dayOfWeek);
-  const mondayDate = new Date(now);
-  mondayDate.setHours(0,0,0,0);
-  mondayDate.setDate(now.getDate() + diffToMonday);
+  const days = ['Dimanche','Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi'];
 
-  let currentDayIndex = 0;
-  let tasks = JSON.parse(localStorage.getItem('tasks')) || Array(7).fill(null).map(() => []);
+  // tasks est un objet avec clés "YYYY-MM-DD" => tableau de tâches
+  let tasks = JSON.parse(localStorage.getItem('tasks')) || {};
+
+  // Décalage en jours par rapport à aujourd'hui (0 = aujourd'hui)
+  let dayOffset = 0;
 
   const dayTitle = document.getElementById('dayTitle');
   const taskList = document.getElementById('taskList');
 
-  // Save tasks to localStorage
+  // Sauvegarde en localStorage
   function saveTasks() {
     localStorage.setItem('tasks', JSON.stringify(tasks));
   }
 
-  // Format date en "10 Juin"
-  function formatDate(date) {
-    return date.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' });
+  // Format date YYYY-MM-DD
+  function formatISODate(date) {
+    return date.toISOString().slice(0,10);
   }
 
-  // Affiche titre jour + date
+  // Format date en "Lundi 8 Juin"
+  function formatFullDate(date) {
+    const dayName = days[date.getDay()];
+    const dayNum = date.getDate();
+    const monthName = date.toLocaleDateString('fr-FR', { month: 'long' });
+    return `${dayName} ${dayNum} ${monthName}`;
+  }
+
+  // Récupère date correspondant au jourOffset
+  function getCurrentDate() {
+    const today = new Date();
+    today.setHours(0,0,0,0);
+    const target = new Date(today);
+    target.setDate(today.getDate() + dayOffset);
+    return target;
+  }
+
+  // Affiche titre jour
   function renderDayTitle() {
-    const date = new Date(mondayDate);
-    date.setDate(mondayDate.getDate() + currentDayIndex);
-    dayTitle.textContent = `${days[currentDayIndex]} ${formatDate(date)}`;
+    const date = getCurrentDate();
+    dayTitle.textContent = formatFullDate(date);
   }
 
-  // Render tasks list
+  // Récupère les tâches pour la date donnée
+  function getTasksForDate(date) {
+    const key = formatISODate(date);
+    if (!tasks[key]) tasks[key] = [];
+    return tasks[key];
+  }
+
+  // Rendu des tâches
   const importanceClasses = {
     low: 'importance-low',
     medium: 'importance-medium',
@@ -188,7 +206,8 @@
   };
   function renderTasks() {
     taskList.innerHTML = '';
-    const dayTasks = tasks[currentDayIndex] || [];
+    const date = getCurrentDate();
+    const dayTasks = getTasksForDate(date);
     dayTasks.forEach(task => {
       const li = document.createElement('li');
       li.className = 'task ' + importanceClasses[task.importance] + (task.done ? ' done' : '');
@@ -198,7 +217,7 @@
       li.setAttribute('role', 'checkbox');
       li.setAttribute('aria-checked', task.done);
       li.addEventListener('click', () => {
-        toggleDone(task.id);
+        toggleDone(task.id, date);
       });
       li.addEventListener('dblclick', () => {
         notify(task);
@@ -207,7 +226,7 @@
     });
   }
 
-  // Add task event
+  // Ajouter tâche
   const form = document.getElementById('taskForm');
   form.addEventListener('submit', e => {
     e.preventDefault();
@@ -216,6 +235,10 @@
     const importance = document.getElementById('taskImportance').value;
     const time = document.getElementById('taskTime').value;
 
+    const date = getCurrentDate();
+    const key = formatISODate(date);
+    if (!tasks[key]) tasks[key] = [];
+
     const newTask = {
       id: Date.now() + Math.random(),
       text,
@@ -223,19 +246,18 @@
       time,
       done: false,
     };
-
-    tasks[currentDayIndex].push(newTask);
+    tasks[key].push(newTask);
     saveTasks();
     renderTasks();
-
     form.reset();
     document.getElementById('taskText').focus();
   });
 
-  // Toggle done state
-  function toggleDone(id) {
-    const dayTasks = tasks[currentDayIndex];
-    const task = dayTasks.find(t => t.id === id);
+  // Basculer fait/non fait
+  function toggleDone(id, date) {
+    const key = formatISODate(date);
+    if (!tasks[key]) return;
+    const task = tasks[key].find(t => t.id === id);
     if (!task) return;
     task.done = !task.done;
     saveTasks();
@@ -251,46 +273,48 @@
       });
     } else if (Notification.permission !== 'denied') {
       Notification.requestPermission().then(permission => {
-        if (permission === 'granted') {
-          notify(task);
-        }
+        if (permission === 'granted') notify(task);
       });
     }
   }
 
-  // Report non faits d'hier vers aujourd'hui avec importance augmentée
+  // Report tâches non faites d'hier vers aujourd'hui avec importance augmentée
   function reportUnDoneTasks() {
-    // Trouver le jour réel pour gérer report
     const today = new Date();
     today.setHours(0,0,0,0);
-    const todayIndex = Math.floor((today - mondayDate) / (1000*60*60*24));
-    if (todayIndex < 0 || todayIndex >= 7) return; // hors semaine affichée
+    const yesterday = new Date(today);
+    yesterday.setDate(today.getDate() - 1);
 
-    const yesterdayIndex = todayIndex === 0 ? 6 : todayIndex -1;
-    const yesterdayTasks = tasks[yesterdayIndex];
-    if (!yesterdayTasks) return;
+    const yKey = formatISODate(yesterday);
+    const tKey = formatISODate(today);
 
-    const undoneTasks = yesterdayTasks.filter(t => !t.done);
+    if (!tasks[yKey]) return;
+
+    const undoneTasks = tasks[yKey].filter(t => !t.done);
     if (undoneTasks.length === 0) return;
 
     undoneTasks.forEach(t => {
+      // Augmente importance
       if (t.importance === 'low') t.importance = 'medium';
       else if (t.importance === 'medium') t.importance = 'high';
+      // Reset done
       t.done = false;
-      tasks[todayIndex].push({...t, id: Date.now() + Math.random()});
+      // Copier task et ajouter à aujourd'hui
+      if (!tasks[tKey]) tasks[tKey] = [];
+      tasks[tKey].push({...t, id: Date.now() + Math.random()});
     });
 
     saveTasks();
   }
 
-  // Flèches navigation
+  // Navigation flèches
   document.getElementById('prevDay').addEventListener('click', () => {
-    currentDayIndex = (currentDayIndex + 6) % 7; // recule d’un jour (modulo 7)
+    dayOffset--;
     renderDayTitle();
     renderTasks();
   });
   document.getElementById('nextDay').addEventListener('click', () => {
-    currentDayIndex = (currentDayIndex + 1) % 7; // avance d’un jour (modulo 7)
+    dayOffset++;
     renderDayTitle();
     renderTasks();
   });
@@ -300,12 +324,12 @@
   renderDayTitle();
   renderTasks();
 
-  // Demande notification permission au chargement
+  // Demande permission notification au chargement
   if ('Notification' in window && Notification.permission !== 'granted') {
     Notification.requestPermission();
   }
 
-  // Service worker register
+  // Register service worker
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('sw.js').then(() => {
       console.log('Service Worker enregistré');
