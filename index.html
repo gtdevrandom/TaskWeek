@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Programme Hebdomadaire</title>
+  <link rel="manifest" href="manifest.json" />
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 600px;
+      margin: auto;
+      padding: 20px;
+      background: #f9fafb;
+    }
+    h1 {
+      text-align: center;
+      margin-bottom: 20px;
+    }
+    .tabs {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 15px;
+      flex-wrap: wrap;
+      gap: 5px;
+    }
+    .tab {
+      flex: 1 1 12%;
+      padding: 10px;
+      border-radius: 5px;
+      border: none;
+      cursor: pointer;
+      background-color: #e2e8f0;
+      color: #000;
+      font-weight: bold;
+      text-align: center;
+      user-select: none;
+    }
+    .tab.active {
+      background-color: #2f855a;
+      color: white;
+    }
+    form {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-bottom: 20px;
+      justify-content: center;
+    }
+    form input[type="text"] {
+      flex: 1 1 50%;
+      padding: 8px;
+      border-radius: 5px;
+      border: 1px solid #ccc;
+      min-width: 150px;
+    }
+    form select, form input[type="time"] {
+      padding: 8px;
+      border-radius: 5px;
+      border: 1px solid #ccc;
+      min-width: 100px;
+    }
+    form button {
+      padding: 8px 16px;
+      border-radius: 5px;
+      border: none;
+      background-color: #2f855a;
+      color: white;
+      cursor: pointer;
+      font-weight: bold;
+      min-width: 100px;
+    }
+    ul {
+      list-style: none;
+      padding: 0;
+    }
+    li.task {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 10px;
+      border-radius: 5px;
+      margin-bottom: 8px;
+      cursor: pointer;
+      color: black;
+      user-select: none;
+    }
+    li.task.done {
+      background-color: #a0aec0 !important;
+      color: #718096 !important;
+      text-decoration: line-through;
+      cursor: default;
+    }
+    .importance-low {
+      background-color: #a0d468;
+    }
+    .importance-medium {
+      background-color: #ffce54;
+    }
+    .importance-high {
+      background-color: #ed5565;
+      color: white;
+    }
+    @media (max-width: 480px) {
+      form input[type="text"] {
+        flex: 1 1 100%;
+      }
+      .tab {
+        flex: 1 1 28%;
+      }
+    }
+  </style>
+</head>
+<body>
+  <h1>Programme Hebdomadaire</h1>
+  <div class="tabs" role="tablist" aria-label="Jours de la semaine">
+    <!-- Boutons jours ici -->
+  </div>
+  <form id="taskForm" aria-label="Ajouter une tâche">
+    <input type="text" id="taskText" placeholder="Nouvelle tâche" aria-label="Texte de la tâche" required />
+    <select id="taskImportance" aria-label="Importance de la tâche">
+      <option value="low">Faible</option>
+      <option value="medium">Moyenne</option>
+      <option value="high">Haute</option>
+    </select>
+    <input type="time" id="taskTime" aria-label="Heure facultative de la tâche" />
+    <button type="submit">Ajouter</button>
+  </form>
+  <ul id="taskList" aria-live="polite" aria-relevant="additions removals"></ul>
+
+  <script>
+    const days = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche'];
+    let currentDayIndex = 0;
+    let tasks = JSON.parse(localStorage.getItem('tasks')) || Array(7).fill(null).map(() => []);
+
+    // Save tasks in localStorage
+    function saveTasks() {
+      localStorage.setItem('tasks', JSON.stringify(tasks));
+    }
+
+    // Create tabs
+    const tabsContainer = document.querySelector('.tabs');
+    days.forEach((day, i) => {
+      const btn = document.createElement('button');
+      btn.className = 'tab' + (i === currentDayIndex ? ' active' : '');
+      btn.textContent = day;
+      btn.setAttribute('role', 'tab');
+      btn.setAttribute('aria-selected', i === currentDayIndex);
+      btn.addEventListener('click', () => {
+        if (currentDayIndex !== i) {
+          currentDayIndex = i;
+          updateTabs();
+          renderTasks();
+        }
+      });
+      tabsContainer.appendChild(btn);
+    });
+
+    function updateTabs() {
+      const btns = tabsContainer.querySelectorAll('.tab');
+      btns.forEach((btn, i) => {
+        btn.classList.toggle('active', i === currentDayIndex);
+        btn.setAttribute('aria-selected', i === currentDayIndex);
+      });
+    }
+
+    // Colors importance mapping
+    const importanceClasses = {
+      low: 'importance-low',
+      medium: 'importance-medium',
+      high: 'importance-high',
+    };
+
+    // Render tasks
+    const taskList = document.getElementById('taskList');
+    function renderTasks() {
+      taskList.innerHTML = '';
+      const dayTasks = tasks[currentDayIndex] || [];
+      dayTasks.forEach(task => {
+        const li = document.createElement('li');
+        li.className = 'task ' + importanceClasses[task.importance] + (task.done ? ' done' : '');
+        li.textContent = task.text + (task.time ? ` (${task.time})` : '');
+        li.title = 'Clique pour cocher/décocher, double-clic pour rappel notification';
+        li.tabIndex = 0;
+        li.setAttribute('role', 'checkbox');
+        li.setAttribute('aria-checked', task.done);
+        li.addEventListener('click', () => {
+          toggleDone(task.id);
+        });
+        li.addEventListener('dblclick', () => {
+          notify(task);
+        });
+        taskList.appendChild(li);
+      });
+    }
+
+    // Add task
+    const form = document.getElementById('taskForm');
+    form.addEventListener('submit', e => {
+      e.preventDefault();
+      const text = document.getElementById('taskText').value.trim();
+      if (!text) return;
+      const importance = document.getElementById('taskImportance').value;
+      const time = document.getElementById('taskTime').value;
+
+      const newTask = {
+        id: Date.now() + Math.random(),
+        text,
+        importance,
+        time,
+        done: false,
+      };
+
+      tasks[currentDayIndex].push(newTask);
+      saveTasks();
+      renderTasks();
+
+      form.reset();
+      document.getElementById('taskText').focus();
+    });
+
+    // Toggle done
+    function toggleDone(id) {
+      const dayTasks = tasks[currentDayIndex];
+      const task = dayTasks.find(t => t.id === id);
+      if (!task) return;
+      task.done = !task.done;
+      saveTasks();
+      renderTasks();
+    }
+
+    // Notification
+    function notify(task) {
+      if (!('Notification' in window)) return alert('Notifications non supportées par ce navigateur.');
+      if (Notification.permission === 'granted') {
+        new Notification(`Rappel tâche: ${task.text}`, {
+          body: task.time ? `Heure: ${task.time}` : '',
+        });
+      } else if (Notification.permission !== 'denied') {
+        Notification.requestPermission().then(permission => {
+          if (permission === 'granted') {
+            notify(task);
+          }
+        });
+      }
+    }
+
+    // Report non faits d'hier
+    function reportUnDoneTasks() {
+      const todayIndex = new Date().getDay() - 1; // lundi=0 (attention dimanche=0)
+      if (todayIndex < 0 || todayIndex > 6) return; // ignore dimanche ou hors plage
+
+      const yesterdayIndex = todayIndex === 0 ? 6 : todayIndex - 1;
+
+      const yesterdayTasks = tasks[yesterdayIndex];
+      if (!yesterdayTasks) return;
+
+      const undoneTasks = yesterdayTasks.filter(t => !t.done);
+      if (undoneTasks.length === 0) return;
+
+      undoneTasks.forEach(t => {
+        // Augmente importance
+        if (t.importance === 'low') t.importance = 'medium';
+        else if (t.importance === 'medium') t.importance = 'high';
+        // Reset done
+        t.done = false;
+        // Push to today
+        tasks[todayIndex].push({...t, id: Date.now() + Math.random()});
+      });
+
+      saveTasks();
+    }
+
+    // Initialisation
+    reportUnDoneTasks();
+    renderTasks();
+
+    // Request Notification permission on load
+    if ('Notification' in window && Notification.permission !== 'granted') {
+      Notification.requestPermission();
+    }
+
+    // Register Service Worker
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('sw.js').then(() => {
+        console.log('Service Worker enregistré');
+      }).catch(console.error);
+    }
+  </script>
+</body>
+</html>
