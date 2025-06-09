@@ -4,9 +4,9 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <meta name="theme-color" content="#2f855a" />
-<link rel="manifest" href="manifest.json" />
-<link rel="icon" href="favicon.ico" type="image/x-icon">
-<link rel="apple-touch-icon" href="icons/icon-192.png">
+  <link rel="manifest" href="manifest.json" />
+  <link rel="icon" href="favicon.ico" type="image/x-icon">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
   <title>Programme Hebdomadaire</title>
 
   <style>
@@ -150,26 +150,20 @@
 <script>
   const days = ['Dimanche','Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi'];
 
-  // tasks est un objet avec clés "YYYY-MM-DD" => tableau de tâches
   let tasks = JSON.parse(localStorage.getItem('tasks')) || {};
-
-  // Décalage en jours par rapport à aujourd'hui (0 = aujourd'hui)
   let dayOffset = 0;
 
   const dayTitle = document.getElementById('dayTitle');
   const taskList = document.getElementById('taskList');
 
-  // Sauvegarde en localStorage
   function saveTasks() {
     localStorage.setItem('tasks', JSON.stringify(tasks));
   }
 
-  // Format date YYYY-MM-DD
   function formatISODate(date) {
     return date.toISOString().slice(0,10);
   }
 
-  // Format date en "Lundi 8 Juin"
   function formatFullDate(date) {
     const dayName = days[date.getDay()];
     const dayNum = date.getDate();
@@ -177,7 +171,6 @@
     return `${dayName} ${dayNum} ${monthName}`;
   }
 
-  // Récupère date correspondant au jourOffset
   function getCurrentDate() {
     const today = new Date();
     today.setHours(0,0,0,0);
@@ -186,25 +179,23 @@
     return target;
   }
 
-  // Affiche titre jour
   function renderDayTitle() {
     const date = getCurrentDate();
     dayTitle.textContent = formatFullDate(date);
   }
 
-  // Récupère les tâches pour la date donnée
   function getTasksForDate(date) {
     const key = formatISODate(date);
     if (!tasks[key]) tasks[key] = [];
     return tasks[key];
   }
 
-  // Rendu des tâches
   const importanceClasses = {
     low: 'importance-low',
     medium: 'importance-medium',
     high: 'importance-high',
   };
+
   function renderTasks() {
     taskList.innerHTML = '';
     const date = getCurrentDate();
@@ -216,7 +207,7 @@
       li.title = 'Clique pour cocher/décocher, double-clic pour rappel notification';
       li.tabIndex = 0;
       li.setAttribute('role', 'checkbox');
-      li.setAttribute('aria-checked', task.done);
+      li.setAttribute('aria-checked', task.done ? 'true' : 'false');
       li.addEventListener('click', () => {
         toggleDone(task.id, date);
       });
@@ -227,7 +218,6 @@
     });
   }
 
-  // Ajouter tâche
   const form = document.getElementById('taskForm');
   form.addEventListener('submit', e => {
     e.preventDefault();
@@ -254,7 +244,6 @@
     document.getElementById('taskText').focus();
   });
 
-  // Basculer fait/non fait
   function toggleDone(id, date) {
     const key = formatISODate(date);
     if (!tasks[key]) return;
@@ -264,30 +253,35 @@
     saveTasks();
     renderTasks();
   }
-function askNotificationPermission() {
-  if ('Notification' in window && Notification.permission === 'default') {
-    Notification.requestPermission();
+
+  function askNotificationPermission() {
+    if ('Notification' in window && Notification.permission === 'default') {
+      Notification.requestPermission().then(permission => {
+        if(permission === 'granted'){
+          alert('Notifications activées !');
+        }
+      });
+    }
   }
-}
 
-// Appelle cette fonction uniquement quand l'utilisateur interagit avec une tâche
-// Exemple dans notify()
-function notify(task) {
-  if (!('Notification' in window)) return alert('Notifications non supportées par ce navigateur.');
-  
-  if (Notification.permission === 'granted') {
-    new Notification(`Rappel tâche: ${task.text}`, {
-      body: task.time ? `Heure: ${task.time}` : '',
-    });
-  } else if (Notification.permission === 'default') {
-    Notification.requestPermission().then(permission => {
-      if (permission === 'granted') notify(task);
-    });
+  function notify(task) {
+    if (!('Notification' in window)) {
+      alert('Notifications non supportées par ce navigateur.');
+      return;
+    }
+    if (Notification.permission === 'granted') {
+      new Notification(`Rappel tâche: ${task.text}`, {
+        body: task.time ? `Heure: ${task.time}` : '',
+      });
+    } else if (Notification.permission === 'default') {
+      Notification.requestPermission().then(permission => {
+        if (permission === 'granted') notify(task);
+      });
+    } else {
+      alert('Les notifications sont bloquées. Merci de les activer dans les paramètres du navigateur.');
+    }
   }
-}
 
-
-  // Report tâches non faites d'hier vers aujourd'hui avec importance augmentée
   function reportUnDoneTasks() {
     const today = new Date();
     today.setHours(0,0,0,0);
@@ -303,12 +297,9 @@ function notify(task) {
     if (undoneTasks.length === 0) return;
 
     undoneTasks.forEach(t => {
-      // Augmente importance
       if (t.importance === 'low') t.importance = 'medium';
       else if (t.importance === 'medium') t.importance = 'high';
-      // Reset done
       t.done = false;
-      // Copier task et ajouter à aujourd'hui
       if (!tasks[tKey]) tasks[tKey] = [];
       tasks[tKey].push({...t, id: Date.now() + Math.random()});
     });
@@ -316,24 +307,22 @@ function notify(task) {
     saveTasks();
   }
 
-  // Navigation flèches
   document.getElementById('prevDay').addEventListener('click', () => {
     dayOffset--;
     renderDayTitle();
     renderTasks();
   });
+
   document.getElementById('nextDay').addEventListener('click', () => {
     dayOffset++;
     renderDayTitle();
     renderTasks();
   });
 
-  // Initialisation
   reportUnDoneTasks();
   renderDayTitle();
   renderTasks();
 
-  // Register service worker
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('sw.js').then(() => {
       console.log('Service Worker enregistré');
