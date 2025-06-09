@@ -30,6 +30,27 @@
       font-size: 1.8rem;
     }
 
+    /* Bouton notifications */
+    button#notifyButton {
+      background-color: #2f855a;
+      color: #e0e7ff;
+      border: none;
+      padding: 0.5rem 1rem;
+      font-weight: bold;
+      font-size: 1rem;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: background-color 0.2s;
+      margin-bottom: 1rem;
+      outline-offset: 2px;
+    }
+    button#notifyButton:hover,
+    button#notifyButton:focus {
+      background-color: #276747;
+      outline: 2px solid #4c9aff;
+      outline-offset: 2px;
+    }
+
     .day-nav {
       display: flex;
       justify-content: space-between;
@@ -122,6 +143,13 @@
     .importance-medium { background-color: #a87a0d; }
     .importance-high { background-color: #b93131; color: #fff; }
 
+    /* Tâches reportées au lendemain, sans heure, en haut */
+    li.task.reported {
+      order: -1; /* remonte en haut */
+      font-style: italic;
+      opacity: 0.9;
+    }
+
     @media (max-width: 480px) {
       body {
         padding: 1rem 0.5rem;
@@ -138,7 +166,7 @@
 
 <body>
   <h1>Programme Hebdomadaire</h1>
-  <button onclick="askNotificationPermission()" aria-label="Activer les notifications">Activer les notifications</button>
+  <button id="notifyButton" onclick="askNotificationPermission()" aria-label="Activer les notifications" aria-pressed="false">Activer les notifications</button>
 
   <div class="day-nav" aria-label="Navigation entre jours">
     <button id="prevDay" aria-label="Jour précédent">⬅️</button>
@@ -172,6 +200,7 @@
 
   const dayTitle = document.getElementById('dayTitle');
   const taskList = document.getElementById('taskList');
+  const notifyButton = document.getElementById('notifyButton');
 
   function saveTasks() {
     localStorage.setItem('tasks', JSON.stringify(tasks));
@@ -217,14 +246,31 @@
     taskList.innerHTML = '';
     const date = getCurrentDate();
     const dayTasks = getTasksForDate(date);
+
+    // Trier les tâches : 
+    // - celles reportées (no time) en premier
+    // - puis les autres par heure croissante
+    dayTasks.sort((a,b) => {
+      if(a.reported && !b.reported) return -1;
+      if(!a.reported && b.reported) return 1;
+      if(a.time && b.time) return a.time.localeCompare(b.time);
+      if(a.time) return -1;
+      if(b.time) return 1;
+      return 0;
+    });
+
     dayTasks.forEach(task => {
       const li = document.createElement('li');
-      li.className = 'task ' + importanceClasses[task.importance] + (task.done ? ' done' : '');
-      li.textContent = task.text + (task.time ? ` (${task.time})` : '');
+      li.className = 'task ' + importanceClasses[task.importance] + (task.done ? ' done' : '') + (task.reported ? ' reported' : '');
       li.title = 'Clique pour cocher/décocher, double-clic pour rappel notification';
       li.tabIndex = 0;
       li.setAttribute('role', 'checkbox');
       li.setAttribute('aria-checked', task.done ? 'true' : 'false');
+
+      // Texte avec heure uniquement si pas reportée
+      const timeText = (task.time && !task.reported) ? ` (${task.time})` : '';
+      li.textContent = task.text + timeText;
+
       li.addEventListener('click', () => {
         toggleDone(task.id, date);
       });
@@ -253,6 +299,7 @@
       importance,
       time,
       done: false,
+      reported: false, // Par défaut, pas reporté
     };
     tasks[key].push(newTask);
     saveTasks();
@@ -276,8 +323,16 @@
       Notification.requestPermission().then(permission => {
         if(permission === 'granted'){
           alert('Notifications activées !');
+          notifyButton.setAttribute('aria-pressed', 'true');
+          notifyButton.disabled = true;
         }
       });
+    } else if (Notification.permission === 'granted') {
+      alert('Les notifications sont déjà activées.');
+      notifyButton.setAttribute('aria-pressed', 'true');
+      notifyButton.disabled = true;
+    } else {
+      alert('Les notifications sont bloquées. Merci de les activer dans les paramètres du navigateur.');
     }
   }
 
@@ -299,6 +354,7 @@
     }
   }
 
+  // Report des tâches non faites d'hier vers aujourd'hui, sans duplication
   function reportUnDoneTasks() {
     const today = new Date();
     today.setHours(0,0,0,0);
@@ -309,16 +365,31 @@
     const tKey = formatISODate(today);
 
     if (!tasks[yKey]) return;
+    if (!tasks[tKey]) tasks[tKey] = [];
+
+    // Identifiants des tâches déjà reportées aujourd'hui (par texte + importance)
+    const todayTexts = new Set(tasks[tKey].map(t => t.text + '|' + t.importance));
 
     const undoneTasks = tasks[yKey].filter(t => !t.done);
-    if (undoneTasks.length === 0) return;
 
     undoneTasks.forEach(t => {
-      if (t.importance === 'low') t.importance = 'medium';
-      else if (t.importance === 'medium') t.importance = 'high';
-      t.done = false;
-      if (!tasks[tKey]) tasks[tKey] = [];
-      tasks[tKey].push({...t, id: Date.now() + Math.random()});
+      // On ne reporte pas si déjà reporté (pour éviter doublons)
+      if (todayTexts.has(t.text + '|' + t.importance)) return;
+
+      // Monte l'importance si possible
+      let newImportance = t.importance;
+      if (t.importance === 'low') newImportance = 'medium';
+      else if (t.importance === 'medium') newImportance = 'high';
+
+      // Tâche reportée sans heure et marquée 'reported'
+      tasks[tKey].push({
+        id: Date.now() + Math.random(),
+        text: t.text,
+        importance: newImportance,
+        time: '', 
+        done: false,
+        reported: true,
+      });
     });
 
     saveTasks();
@@ -336,6 +407,7 @@
     renderTasks();
   });
 
+  // Initialisation
   reportUnDoneTasks();
   renderDayTitle();
   renderTasks();
