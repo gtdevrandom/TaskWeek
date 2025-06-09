@@ -40,7 +40,7 @@
       background: none;
       border: none;
       font-size: 2rem;
-      color: #8ab4f8;
+      color: #5a7bcf;
       cursor: pointer;
     }
 
@@ -133,18 +133,22 @@
     <div class="day-title" id="dayTitle" aria-live="polite"></div>
     <button id="nextDay" aria-label="Jour suivant">➡️</button>
   </div>
+<form id="taskForm">
+  <label for="taskText">Tâche :</label>
+  <input type="text" id="taskText" placeholder="Nouvelle tâche" required />
 
-  <form id="taskForm">
-    <input type="text" id="taskText" placeholder="Nouvelle tâche" required />
-    <select id="taskImportance">
-      <option value="low">Faible</option>
-      <option value="medium" selected>Moyenne</option>
-      <option value="high">Haute</option>
-    </select>
-    <input type="time" id="taskTime" />
-    <button type="submit">Ajouter</button>
-  </form>
+  <label for="taskImportance">Importance :</label>
+  <select id="taskImportance">
+    <option value="low">Faible</option>
+    <option value="medium" selected>Moyenne</option>
+    <option value="high">Haute</option>
+  </select>
 
+  <label for="taskTime">Heure :</label>
+  <input type="time" id="taskTime" />
+
+  <button type="submit">Ajouter</button>
+</form>
   <ul id="taskList"></ul>
 
 <script>
