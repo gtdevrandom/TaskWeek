@@ -4,8 +4,6 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta name="description" content="Application simple pour gérer votre liste de courses, même hors ligne.">
-  <meta name="robots" content="index, follow">
   <link rel="manifest" href="manifest.json" />
   <meta name="theme-color" content="#2196f3" />
 
@@ -131,6 +129,34 @@
     button[type="submit"]:hover {
       background: #1976d2;
     }
+	.add-button {
+  background: #2979ff; /* Bleu vif, bon contraste */
+  color: white;
+  cursor: pointer;
+  font-weight: bold;
+  border: none;
+  transition: background-color 0.3s ease;
+}
+
+.add-button:hover,
+.add-button:focus {
+  background: #1c54b2;
+  outline: none;
+}
+	.drag-ghost {
+  position: fixed;
+  top: 0;
+  left: 0;
+  pointer-events: none;
+  background: #444;
+  opacity: 0.8;
+  padding: 10px;
+  border-radius: 5px;
+  z-index: 100000;
+  transform: translate(-50%, -50%);
+  transition: box-shadow 0.2s ease;
+  box-shadow: 0 4px 8px rgba(0,0,0,0.5);
+}
   </style>
 </head>
 
@@ -246,6 +272,82 @@
       e.target.reset();
       renderTasks();
     };
+
+let draggedItem = null;
+let dragGhost = null;
+let currentIndex = -1;
+let itemsArray = [];
+
+function touchStart(event) {
+  const target = event.target;
+  if (target.closest('.small-checkbox') || target.closest('.delete-item') || target.closest('.not-found-button')) return;
+  event.preventDefault();
+
+  draggedItem = event.target.closest(".item");
+  if (!draggedItem) return;
+
+  currentIndex = Number(draggedItem.dataset.index);
+
+  // Créer un clone fantôme qui suit le doigt
+  dragGhost = draggedItem.cloneNode(true);
+  dragGhost.classList.add('drag-ghost');
+  document.body.appendChild(dragGhost);
+
+  moveGhost(event.touches[0].clientX, event.touches[0].clientY);
+
+  draggedItem.style.opacity = '0.5';
+
+  // Désactive scroll
+  document.body.style.userSelect = 'none';
+  document.body.style.touchAction = 'none';
+}
+
+function touchMove(event) {
+  event.preventDefault();
+  if (!draggedItem || !dragGhost) return;
+
+  const touch = event.touches[0];
+  moveGhost(touch.clientX, touch.clientY);
+
+  // Trouver l'élément sous le doigt (avec offsetY pour précision)
+  const hoveredElement = document.elementFromPoint(touch.clientX, touch.clientY);
+  const targetItem = hoveredElement?.closest(".item");
+
+  if (targetItem && targetItem !== draggedItem) {
+    const targetIndex = Number(targetItem.dataset.index);
+    if (targetIndex !== currentIndex) {
+      // Réorganiser tableau
+      let movedItem = itemsArray.splice(currentIndex, 1)[0];
+      itemsArray.splice(targetIndex, 0, movedItem);
+      currentIndex = targetIndex;
+      localStorage.setItem("shoppingList", JSON.stringify(itemsArray));
+      loadList();
+    }
+  }
+}
+
+function touchEnd(event) {
+  if (dragGhost) {
+    dragGhost.remove();
+    dragGhost = null;
+  }
+  if (draggedItem) {
+    draggedItem.style.opacity = '1';
+    draggedItem = null;
+  }
+  currentIndex = -1;
+
+  // Rétablir scroll
+  document.body.style.userSelect = '';
+  document.body.style.touchAction = '';
+}
+
+function moveGhost(x, y) {
+  if (dragGhost) {
+    dragGhost.style.transform = `translate(${x}px, ${y}px) translate(-50%, -50%)`;
+  }
+}
+
 
     // Report tasks not done from past days
     window.addEventListener("load", () => {
