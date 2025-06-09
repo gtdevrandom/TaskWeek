@@ -126,6 +126,7 @@
 
 <body>
   <h1>Programme Hebdomadaire</h1>
+  <button onclick="askNotificationPermission()">Activer les notifications</button>
 
   <div class="day-nav" aria-label="Navigation entre jours">
     <button id="prevDay" aria-label="Jour précédent">⬅️</button>
@@ -263,20 +264,28 @@
     saveTasks();
     renderTasks();
   }
-
-  // Notifications
-  function notify(task) {
-    if (!('Notification' in window)) return alert('Notifications non supportées par ce navigateur.');
-    if (Notification.permission === 'granted') {
-      new Notification(`Rappel tâche: ${task.text}`, {
-        body: task.time ? `Heure: ${task.time}` : '',
-      });
-    } else if (Notification.permission !== 'denied') {
-      Notification.requestPermission().then(permission => {
-        if (permission === 'granted') notify(task);
-      });
-    }
+function askNotificationPermission() {
+  if ('Notification' in window && Notification.permission === 'default') {
+    Notification.requestPermission();
   }
+}
+
+// Appelle cette fonction uniquement quand l'utilisateur interagit avec une tâche
+// Exemple dans notify()
+function notify(task) {
+  if (!('Notification' in window)) return alert('Notifications non supportées par ce navigateur.');
+  
+  if (Notification.permission === 'granted') {
+    new Notification(`Rappel tâche: ${task.text}`, {
+      body: task.time ? `Heure: ${task.time}` : '',
+    });
+  } else if (Notification.permission === 'default') {
+    Notification.requestPermission().then(permission => {
+      if (permission === 'granted') notify(task);
+    });
+  }
+}
+
 
   // Report tâches non faites d'hier vers aujourd'hui avec importance augmentée
   function reportUnDoneTasks() {
@@ -323,11 +332,6 @@
   reportUnDoneTasks();
   renderDayTitle();
   renderTasks();
-
-  // Demande permission notification au chargement
-  if ('Notification' in window && Notification.permission !== 'granted') {
-    Notification.requestPermission();
-  }
 
   // Register service worker
   if ('serviceWorker' in navigator) {
