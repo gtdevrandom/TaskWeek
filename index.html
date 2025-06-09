@@ -194,255 +194,247 @@
 
 <script>
   const days = ['Dimanche','Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi'];
+  let tasks = JSON.parse(localStorage.getItem('tasks')) || {};
+  let dayOffset = 0;
 
-let tasks = JSON.parse(localStorage.getItem('tasks')) || {};
-let dayOffset = 0;
+  const dayTitle = document.getElementById('dayTitle');
+  const taskList = document.getElementById('taskList');
+  const notifyButton = document.getElementById('notifyButton');
 
-const dayTitle = document.getElementById('dayTitle');
-const taskList = document.getElementById('taskList');
-const notifyButton = document.getElementById('notifyButton');
+  function saveTasks() {
+    localStorage.setItem('tasks', JSON.stringify(tasks));
+  }
 
-function saveTasks() {
-  localStorage.setItem('tasks', JSON.stringify(tasks));
-}
+  function formatISODate(date) {
+    return date.toISOString().slice(0,10);
+  }
 
-function formatISODate(date) {
-  return date.toISOString().slice(0,10);
-}
+  function formatFullDate(date) {
+    const dayName = days[date.getDay()];
+    const dayNum = date.getDate();
+    const monthName = date.toLocaleDateString('fr-FR', { month: 'long' });
+    return `${dayName} ${dayNum} ${monthName}`;
+  }
 
-function formatFullDate(date) {
-  const dayName = days[date.getDay()];
-  const dayNum = date.getDate();
-  const monthName = date.toLocaleDateString('fr-FR', { month: 'long' });
-  return `${dayName} ${dayNum} ${monthName}`;
-}
+  function getCurrentDate() {
+    const today = new Date();
+    today.setHours(0,0,0,0);
+    const target = new Date(today);
+    target.setDate(today.getDate() + dayOffset);
+    return target;
+  }
 
-function getCurrentDate() {
-  const today = new Date();
-  today.setHours(0,0,0,0);
-  const target = new Date(today);
-  target.setDate(today.getDate() + dayOffset);
-  return target;
-}
+  function renderDayTitle() {
+    const date = getCurrentDate();
+    dayTitle.textContent = formatFullDate(date);
+  }
 
-function renderDayTitle() {
-  const date = getCurrentDate();
-  dayTitle.textContent = formatFullDate(date);
-}
+  function getTasksForDate(date) {
+    const key = formatISODate(date);
+    if (!tasks[key]) tasks[key] = [];
+    return tasks[key];
+  }
 
-function getTasksForDate(date) {
-  const key = formatISODate(date);
-  if (!tasks[key]) tasks[key] = [];
-  return tasks[key];
-}
-
-const importanceClasses = {
-  low: 'importance-low',
-  medium: 'importance-medium',
-  high: 'importance-high',
-};
-
-function renderTasks() {
-  taskList.innerHTML = '';
-  const date = getCurrentDate();
-  const dayTasks = getTasksForDate(date);
-
-  dayTasks.sort((a,b) => {
-    if(a.reported && !b.reported) return -1;
-    if(!a.reported && b.reported) return 1;
-    if(a.time && b.time) return a.time.localeCompare(b.time);
-    if(a.time) return -1;
-    if(b.time) return 1;
-    return 0;
-  });
-
-  dayTasks.forEach(task => {
-    const li = document.createElement('li');
-    li.className = 'task ' + importanceClasses[task.importance] + (task.done ? ' done' : '') + (task.reported ? ' reported' : '');
-    li.title = 'Clique pour cocher/décocher, double-clic pour rappel notification';
-    li.tabIndex = 0;
-    li.setAttribute('role', 'checkbox');
-    li.setAttribute('aria-checked', task.done ? 'true' : 'false');
-
-    const timeText = (task.time && !task.reported) ? ` (${task.time})` : '';
-    li.textContent = task.text + timeText;
-
-    li.addEventListener('click', () => {
-      toggleDone(task.id, date);
-    });
-    li.addEventListener('dblclick', () => {
-      notify(task);
-    });
-    taskList.appendChild(li);
-  });
-}
-
-const form = document.getElementById('taskForm');
-form.addEventListener('submit', e => {
-  e.preventDefault();
-  const text = document.getElementById('taskText').value.trim();
-  if (!text) return;
-  const importance = document.getElementById('taskImportance').value;
-  const time = document.getElementById('taskTime').value;
-
-  const date = getCurrentDate();
-  const key = formatISODate(date);
-  if (!tasks[key]) tasks[key] = [];
-
-  const newTask = {
-    id: Date.now() + Math.random(),
-    text,
-    importance,
-    time,
-    done: false,
-    reported: false,
+  const importanceClasses = {
+    low: 'importance-low',
+    medium: 'importance-medium',
+    high: 'importance-high',
   };
-  tasks[key].push(newTask);
-  saveTasks();
-  renderTasks();
-  form.reset();
-  document.getElementById('taskText').focus();
-});
 
-function toggleDone(id, date) {
-  const key = formatISODate(date);
-  if (!tasks[key]) return;
-  const task = tasks[key].find(t => t.id === id);
-  if (!task) return;
-  task.done = !task.done;
-  saveTasks();
-  renderTasks();
-}
+  function renderTasks() {
+    taskList.innerHTML = '';
+    const date = getCurrentDate();
+    const dayTasks = getTasksForDate(date);
 
-function updateNotifyButtonState() {
-  if (!('Notification' in window)) {
-    notifyButton.disabled = true;
-    notifyButton.textContent = "Notifications non supportées";
-    notifyButton.setAttribute('aria-pressed', 'false');
-    return;
-  }
-
-  if (Notification.permission === 'granted') {
-    notifyButton.disabled = true;
-    notifyButton.textContent = "Notifications activées";
-    notifyButton.setAttribute('aria-pressed', 'true');
-  } else if (Notification.permission === 'denied') {
-    notifyButton.disabled = true;
-    notifyButton.textContent = "Notifications bloquées";
-    notifyButton.setAttribute('aria-pressed', 'false');
-  } else {
-    notifyButton.disabled = false;
-    notifyButton.textContent = "Activer les notifications";
-    notifyButton.setAttribute('aria-pressed', 'false');
-  }
-}
-
-function askNotificationPermission() {
-  if (!('Notification' in window)) {
-    alert('Les notifications ne sont pas supportées par votre navigateur.');
-    return;
-  }
-
-  if (Notification.permission === 'default') {
-    Notification.requestPermission().then(permission => {
-      if (permission === 'granted') {
-        alert('Notifications activées !');
-        updateNotifyButtonState();
-      } else if (permission === 'denied') {
-        alert('Vous avez bloqué les notifications.');
-        updateNotifyButtonState();
-      }
+    dayTasks.sort((a,b) => {
+      if(a.reported && !b.reported) return -1;
+      if(!a.reported && b.reported) return 1;
+      if(a.time && b.time) return a.time.localeCompare(b.time);
+      if(a.time) return -1;
+      if(b.time) return 1;
+      return 0;
     });
-  } else if (Notification.permission === 'granted') {
-    alert('Les notifications sont déjà activées.');
-    updateNotifyButtonState();
-  } else {
-    alert('Les notifications sont bloquées. Merci de les activer dans les paramètres du navigateur.');
-  }
-}
 
-function notify(task) {
-  if (!('Notification' in window)) {
-    alert('Notifications non supportées par ce navigateur.');
-    return;
-  }
-  if (Notification.permission === 'granted') {
-    new Notification(`Rappel tâche: ${task.text}`, {
-      body: task.time ? `Heure: ${task.time}` : 'Pas d\'heure spécifiée',
-      icon: 'icons/icon-192.png'
+    dayTasks.forEach(task => {
+      const li = document.createElement('li');
+      li.className = 'task ' + importanceClasses[task.importance] + (task.done ? ' done' : '') + (task.reported ? ' reported' : '');
+      li.title = 'Clique pour cocher/décocher, double-clic pour rappel notification';
+      li.tabIndex = 0;
+      li.setAttribute('role', 'checkbox');
+      li.setAttribute('aria-checked', task.done ? 'true' : 'false');
+
+      const timeText = (task.time && !task.reported) ? ` (${task.time})` : '';
+      li.textContent = task.text + timeText;
+
+      li.addEventListener('click', () => toggleDone(task.id, date));
+      li.addEventListener('dblclick', () => notify(task));
+
+      taskList.appendChild(li);
     });
-  } else if (Notification.permission === 'default') {
-    Notification.requestPermission().then(permission => {
-      if (permission === 'granted') notify(task);
-    });
-  } else {
-    alert('Les notifications sont bloquées. Merci de les activer dans les paramètres du navigateur.');
   }
-}
 
-// Report des tâches non faites d'hier vers aujourd'hui, sans duplication
-function reportUnDoneTasks() {
-  const today = new Date();
-  today.setHours(0,0,0,0);
-  const yesterday = new Date(today);
-  yesterday.setDate(today.getDate() - 1);
+  const form = document.getElementById('taskForm');
+  form.addEventListener('submit', e => {
+    e.preventDefault();
+    const text = document.getElementById('taskText').value.trim();
+    if (!text) return;
+    const importance = document.getElementById('taskImportance').value;
+    const time = document.getElementById('taskTime').value;
 
-  const yKey = formatISODate(yesterday);
-  const tKey = formatISODate(today);
+    const date = getCurrentDate();
+    const key = formatISODate(date);
+    if (!tasks[key]) tasks[key] = [];
 
-  if (!tasks[yKey]) return;
-  if (!tasks[tKey]) tasks[tKey] = [];
-
-  const todayTexts = new Set(tasks[tKey].map(t => t.text + '|' + t.importance));
-
-  const undoneTasks = tasks[yKey].filter(t => !t.done);
-
-  undoneTasks.forEach(t => {
-    if (todayTexts.has(t.text + '|' + t.importance)) return;
-
-    let newImportance = t.importance;
-    if (t.importance === 'low') newImportance = 'medium';
-    else if (t.importance === 'medium') newImportance = 'high';
-
-    tasks[tKey].push({
+    const newTask = {
       id: Date.now() + Math.random(),
-      text: t.text,
-      importance: newImportance,
-      time: '',
+      text,
+      importance,
+      time,
       done: false,
-      reported: true,
-    });
+      reported: false
+    };
+    tasks[key].push(newTask);
+    saveTasks();
+    renderTasks();
+    form.reset();
+    document.getElementById('taskText').focus();
   });
 
-  saveTasks();
-}
+  function toggleDone(id, date) {
+    const key = formatISODate(date);
+    if (!tasks[key]) return;
+    const task = tasks[key].find(t => t.id === id);
+    if (!task) return;
+    task.done = !task.done;
+    saveTasks();
+    renderTasks();
+  }
 
-document.getElementById('prevDay').addEventListener('click', () => {
-  dayOffset--;
+  function askNotificationPermission() {
+    if ('Notification' in window && Notification.permission === 'default') {
+      Notification.requestPermission().then(permission => {
+        if (permission === 'granted') {
+          alert('Notifications activées !');
+          notifyButton.setAttribute('aria-pressed', 'true');
+          notifyButton.disabled = true;
+        }
+      });
+    } else if (Notification.permission === 'granted') {
+      alert('Les notifications sont déjà activées.');
+      notifyButton.setAttribute('aria-pressed', 'true');
+      notifyButton.disabled = true;
+    } else {
+      alert('Les notifications sont bloquées. Activez-les dans les paramètres du navigateur.');
+    }
+  }
+
+  function notify(task) {
+    if (!('Notification' in window)) {
+      alert('Notifications non supportées par ce navigateur.');
+      return;
+    }
+
+    if (Notification.permission === 'granted') {
+      if (navigator.serviceWorker && navigator.serviceWorker.controller) {
+        navigator.serviceWorker.controller.postMessage({
+          type: 'notify-task',
+          task
+        });
+      } else {
+        new Notification(`Tâche : ${task.text}`, {
+          body: task.time ? `Heure : ${task.time}` : '',
+        });
+      }
+    } else if (Notification.permission === 'default') {
+      Notification.requestPermission().then(permission => {
+        if (permission === 'granted') notify(task);
+      });
+    } else {
+      alert('Les notifications sont bloquées. Activez-les dans les paramètres du navigateur.');
+    }
+  }
+
+  function reportUnDoneTasks() {
+    const today = new Date();
+    today.setHours(0,0,0,0);
+    const yesterday = new Date(today);
+    yesterday.setDate(today.getDate() - 1);
+
+    const yKey = formatISODate(yesterday);
+    const tKey = formatISODate(today);
+
+    if (!tasks[yKey]) return;
+    if (!tasks[tKey]) tasks[tKey] = [];
+
+    const todayTexts = new Set(tasks[tKey].map(t => t.text + '|' + t.importance));
+    const undoneTasks = tasks[yKey].filter(t => !t.done);
+
+    undoneTasks.forEach(t => {
+      if (todayTexts.has(t.text + '|' + t.importance)) return;
+
+      let newImportance = t.importance;
+      if (t.importance === 'low') newImportance = 'medium';
+      else if (t.importance === 'medium') newImportance = 'high';
+
+      tasks[tKey].push({
+        id: Date.now() + Math.random(),
+        text: t.text,
+        importance: newImportance,
+        time: '',
+        done: false,
+        reported: true,
+      });
+    });
+
+    saveTasks();
+  }
+
+  // 🔔 Vérifie chaque minute si une tâche doit être rappelée
+  function startTaskReminderLoop() {
+    setInterval(() => {
+      const now = new Date();
+      const h = now.getHours().toString().padStart(2, '0');
+      const m = now.getMinutes().toString().padStart(2, '0');
+      const currentTime = `${h}:${m}`;
+      const key = formatISODate(now);
+      const dayTasks = tasks[key] || [];
+
+      dayTasks.forEach(task => {
+        if (!task.done && task.time === currentTime && !task._notified) {
+          notify(task);
+          task._notified = true; // pour éviter de répéter la notif
+        }
+      });
+
+      saveTasks();
+    }, 60 * 1000); // chaque minute
+  }
+
+  document.getElementById('prevDay').addEventListener('click', () => {
+    dayOffset--;
+    renderDayTitle();
+    renderTasks();
+  });
+
+  document.getElementById('nextDay').addEventListener('click', () => {
+    dayOffset++;
+    renderDayTitle();
+    renderTasks();
+  });
+
+  // Initialisation
+  reportUnDoneTasks();
   renderDayTitle();
   renderTasks();
-});
+  startTaskReminderLoop();
 
-document.getElementById('nextDay').addEventListener('click', () => {
-  dayOffset++;
-  renderDayTitle();
-  renderTasks();
-});
-
-notifyButton.addEventListener('click', askNotificationPermission);
-
-// Initialisation
-reportUnDoneTasks();
-renderDayTitle();
-renderTasks();
-updateNotifyButtonState();
-
-if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.register('sw.js').then(() => {
-    console.log('Service Worker enregistré');
-  }).catch(console.error);
-}
-
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('sw.js').then(() => {
+      console.log('Service Worker enregistré');
+    }).catch(console.error);
+  }
 </script>
+
+
 </body>
 </html>
