@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="fr">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="manifest" href="manifest.json" />
+  <meta name="theme-color" content="#2196f3" />
+
+  <title>TaskWeek</title>
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 0;
+      background-color: #121212;
+      color: #ffffff;
+    }
+
+    header {
+      text-align: center;
+      padding: 1em;
+      background-color: #1e1e1e;
+    }
+
+    .nav {
+      display: flex;
+      justify-content: space-between;
+      padding: 0.5em 1em;
+      background: #2c2c2c;
+      align-items: center;
+    }
+
+    .nav button {
+      padding: 0.5em 1em;
+      cursor: pointer;
+      background: #444;
+      color: #fff;
+      border: none;
+      border-radius: 5px;
+    }
+
+    .nav button:hover {
+      background: #666;
+    }
+
+    .day-container {
+      padding: 1em;
+    }
+
+    .task {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0.5em;
+      margin: 0.5em 0;
+      border-radius: 5px;
+    }
+
+    .low {
+      background: #424242;
+    }
+
+    .medium {
+      background: #ffb300;
+      color: #000;
+    }
+
+    .high {
+      background: #d32f2f;
+      color: #fff;
+    }
+
+    .task.done {
+      text-decoration: line-through;
+      opacity: 0.6;
+    }
+
+    .task span {
+      flex-grow: 1;
+      cursor: pointer;
+    }
+
+    .task button {
+      margin-left: 0.5em;
+      padding: 0.3em 0.6em;
+      background: #d32f2f;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+
+    .task button:hover {
+      background: #b71c1c;
+    }
+
+    .form {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5em;
+      margin-bottom: 1em;
+    }
+
+    input,
+    select,
+    button {
+      padding: 0.5em;
+      border-radius: 5px;
+      border: none;
+    }
+
+    input,
+    select {
+      background: #333;
+      color: white;
+    }
+
+    button[type="submit"] {
+      background: #2196f3;
+      color: white;
+      cursor: pointer;
+    }
+
+    button[type="submit"]:hover {
+      background: #1976d2;
+    }
+  </style>
+</head>
+
+<body>
+  <header>
+    <h1 id="currentDate"></h1>
+  </header>
+  <div class="nav">
+    <button onclick="changeDay(-1)">&#8592;</button>
+    <h2 id="dayTitle"></h2>
+    <button onclick="changeDay(1)">&#8594;</button>
+  </div>
+  <div class="day-container">
+    <form id="taskForm" class="form" aria-label="Formulaire d'ajout de tâche">
+      <label for="taskInput" class="sr-only">Nouvelle tâche</label>
+      <input type="text" id="taskInput" placeholder="Nouvelle tâche..." required />
+
+      <label for="taskTime" class="sr-only">Heure (optionnelle)</label>
+      <input type="time" id="taskTime" />
+
+      <label for="taskImportance" class="sr-only">Importance de la tâche</label>
+      <select id="taskImportance" aria-label="Importance de la tâche">
+        <option value="">Importance (aucune)</option>
+        <option value="low">Faible</option>
+        <option value="medium">Moyenne</option>
+        <option value="high">Haute</option>
+      </select>
+
+      <button type="submit">Ajouter</button>
+    </form>
+    <div id="taskList"></div>
+  </div>
+<script>
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('sw.js')
+      .then(reg => console.log('Service Worker enregistré:', reg))
+      .catch(err => console.error('Erreur Service Worker:', err));
+    });
+  }
+</script>
+
+  <script>
+    const dateOptions = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+    const currentDate = new Date();
+    let tasks = JSON.parse(localStorage.getItem("tasks")) || [];
+    let currentDayIndex = 0; // 0 = today
+
+    document.getElementById("currentDate").textContent = currentDate.toLocaleDateString("fr-FR", dateOptions);
+
+    function getDateByIndex(index) {
+      const date = new Date(currentDate);
+      date.setDate(date.getDate() + index);
+      return date;
+    }
+
+    function formatDateKey(date) {
+      return date.toISOString().split('T')[0];
+    }
+
+    function updateDayTitle() {
+      const date = getDateByIndex(currentDayIndex);
+      document.getElementById("dayTitle").textContent = date.toLocaleDateString("fr-FR", { weekday: 'long', day: 'numeric', month: 'long' });
+    }
+
+    function saveTasks() {
+      localStorage.setItem("tasks", JSON.stringify(tasks));
+    }
+
+    function renderTasks() {
+      const dateKey = formatDateKey(getDateByIndex(currentDayIndex));
+      const list = document.getElementById("taskList");
+      list.innerHTML = "";
+      tasks.filter(t => t.date === dateKey).forEach(task => {
+        const div = document.createElement("div");
+        div.className = `task ${task.importance || ''} ${task.done ? 'done' : ''}`;
+        const label = document.createElement("span");
+        label.textContent = `${task.time ? task.time + ' - ' : ''}${task.text}`;
+        label.onclick = () => {
+          task.done = !task.done;
+          saveTasks();
+          renderTasks();
+        };
+        const del = document.createElement("button");
+        del.textContent = "Supprimer";
+        del.onclick = () => {
+          if (confirm("Supprimer cette tâche ?")) {
+            tasks = tasks.filter(t => t !== task);
+            saveTasks();
+            renderTasks();
+          }
+        };
+        div.appendChild(label);
+        div.appendChild(del);
+        list.appendChild(div);
+      });
+    }
+
+    function changeDay(dir) {
+      currentDayIndex += dir;
+      updateDayTitle();
+      renderTasks();
+    }
+
+    document.getElementById("taskForm").onsubmit = e => {
+      e.preventDefault();
+      const text = document.getElementById("taskInput").value.trim();
+      const time = document.getElementById("taskTime").value;
+      const importance = document.getElementById("taskImportance").value;
+      if (!text) return;
+      tasks.push({ text, time, importance, date: formatDateKey(getDateByIndex(currentDayIndex)), done: false });
+      saveTasks();
+      e.target.reset();
+      renderTasks();
+    };
+
+    // Report tasks not done from past days
+    window.addEventListener("load", () => {
+      const nowKey = formatDateKey(currentDate);
+      tasks.forEach(task => {
+        if (!task.done && new Date(task.date) < currentDate) {
+          task.date = nowKey;
+        }
+      });
+      saveTasks();
+      updateDayTitle();
+      renderTasks();
+    });
+  </script>
+</body>
+
+</html>

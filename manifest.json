@@ -1,0 +1,16 @@
+{
+  "name": "TaskWeek",
+  "short_name": "TaskWeek",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#121212",
+  "theme_color": "#2196f3",
+  "description": "Programme 7 jours pour gérer tes tâches facilement",
+  "icons": [
+    {
+      "src": "favicon.ico",
+      "sizes": "512x512",
+      "type": "image/x-icon"
+    }
+  ]
+}
