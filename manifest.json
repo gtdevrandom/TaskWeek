@@ -1,7 +1,7 @@
 {
   "name": "Programme Hebdomadaire",
   "short_name": "TaskWeek",
-  "start_url": "index.html",
+  "start_url": "./",
   "display": "standalone",
   "theme_color": "#2f855a",
   "background_color": "#121212",
