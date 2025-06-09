@@ -1,0 +1,16 @@
+{
+  "name": "Programme Hebdomadaire",
+  "short_name": "Hebdo",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "theme_color": "#2f855a",
+  "background_color": "#121212",
+  "description": "Une app PWA pour gérer ton planning de tâches par jour.",
+  "icons": [
+    {
+      "src": "favicon.ico",
+      "sizes": "64x64 32x32 24x24 16x16",
+      "type": "image/x-icon"
+    }
+  ]
+}
