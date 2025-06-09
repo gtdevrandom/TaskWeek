@@ -1,36 +1,34 @@
 const CACHE_NAME = 'programme-hebdo-cache-v1';
 const urlsToCache = [
-  '/hebdo-app/',
-  '/hebdo-app/index.html',
-  '/hebdo-app/manifest.json',
-  '/hebdo-app/icons/icon-192.png',
-  '/hebdo-app/icons/icon-512.png',
-  '/hebdo-app/favicon.ico'
+  './',
+  './index.html',
+  './manifest.json',
+  './icons/icon-192.png',
+  './icons/icon-512.png',
+  './favicon.ico'
 ];
 
 self.addEventListener('install', event => {
   event.waitUntil(
-    caches.open(CACHE_NAME).then(cache => {
-      return cache.addAll(urlsToCache);
-    })
+    caches.open(CACHE_NAME).then(cache => cache.addAll(urlsToCache))
   );
 });
 
 self.addEventListener('activate', event => {
   event.waitUntil(
-    caches.keys().then(cacheNames =>
-      Promise.all(
-        cacheNames.filter(name => name !== CACHE_NAME)
-          .map(name => caches.delete(name))
-      )
+    caches.keys().then(keys =>
+      Promise.all(keys.filter(key => key !== CACHE_NAME).map(key => caches.delete(key)))
     )
   );
 });
 
 self.addEventListener('fetch', event => {
   event.respondWith(
-    caches.match(event.request).then(response =>
-      response || fetch(event.request)
-    )
+    caches.match(event.request).then(cachedResp => {
+      return cachedResp || fetch(event.request).catch(() => {
+        // Optionnel: fallback vers page offline si tu en as une
+        // return caches.match('/offline.html');
+      });
+    })
   );
 });
