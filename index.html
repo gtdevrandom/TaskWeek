@@ -5,8 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <meta name="theme-color" content="#2f855a" />
   <link rel="manifest" href="manifest.json" />
-  <link rel="icon" href="favicon.ico" type="image/x-icon">
-  <link rel="apple-touch-icon" href="icons/icon-192.png">
+  <link rel="icon" href="favicon.ico" type="image/x-icon" />
+  <link rel="apple-touch-icon" href="icons/icon-192.png" />
   <title>Programme Hebdomadaire</title>
 
   <style>
@@ -40,8 +40,14 @@
       background: none;
       border: none;
       font-size: 2rem;
-      color: #e0e7ff;
+      color: #e0e7ff; /* texte clair pour bon contraste */
       cursor: pointer;
+      outline-offset: 2px;
+    }
+    .day-nav button:focus {
+      outline: 2px solid #4c9aff;
+      outline-offset: 2px;
+      border-radius: 4px;
     }
 
     .day-title {
@@ -76,10 +82,15 @@
       font-weight: bold;
       cursor: pointer;
       transition: background 0.2s;
+      color: #e0e7ff; /* texte clair */
+      outline-offset: 2px;
     }
 
-    form button:hover {
+    form button:hover,
+    form button:focus {
       background-color: #276747;
+      outline: 2px solid #4c9aff;
+      outline-offset: 2px;
     }
 
     ul {
@@ -126,29 +137,30 @@
 
 <body>
   <h1>Programme Hebdomadaire</h1>
-  <button onclick="askNotificationPermission()">Activer les notifications</button>
+  <button onclick="askNotificationPermission()" aria-label="Activer les notifications">Activer les notifications</button>
 
   <div class="day-nav" aria-label="Navigation entre jours">
     <button id="prevDay" aria-label="Jour précédent">⬅️</button>
     <div class="day-title" id="dayTitle" aria-live="polite"></div>
     <button id="nextDay" aria-label="Jour suivant">➡️</button>
   </div>
-<form id="taskForm">
-  <label for="taskText">Tâche :</label>
-  <input type="text" id="taskText" placeholder="Nouvelle tâche" required />
 
-  <label for="taskImportance">Importance :</label>
-  <select id="taskImportance">
-    <option value="low">Faible</option>
-    <option value="medium" selected>Moyenne</option>
-    <option value="high">Haute</option>
-  </select>
+  <form id="taskForm">
+    <label for="taskText">Tâche :</label>
+    <input type="text" id="taskText" placeholder="Nouvelle tâche" required />
 
-  <label for="taskTime">Heure :</label>
-  <input type="time" id="taskTime" />
+    <label for="taskImportance">Importance :</label>
+    <select id="taskImportance">
+      <option value="low">Faible</option>
+      <option value="medium" selected>Moyenne</option>
+      <option value="high">Haute</option>
+    </select>
 
-  <button type="submit">Ajouter</button>
-</form>
+    <label for="taskTime">Heure :</label>
+    <input type="time" id="taskTime" />
+
+    <button type="submit">Ajouter</button>
+  </form>
   <ul id="taskList"></ul>
 
 <script>
