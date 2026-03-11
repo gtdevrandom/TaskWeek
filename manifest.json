@@ -2,8 +2,8 @@
   "name": "Agenda Pro",
   "short_name": "AgendaPro",
   "description": "Votre agenda personnel et professionnel",
-  "start_url": "./",
-  "scope": "./",
+  "start_url": "/TaskWeek/",
+  "scope": "/TaskWeek/",
   "display": "standalone",
   "background_color": "#0f0f13",
   "theme_color": "#0f0f13",
@@ -42,13 +42,13 @@
       "name": "Nouvel événement",
       "short_name": "Nouveau",
       "description": "Créer un nouvel événement",
-      "url": "./?action=new"
+      "url": "/TaskWeek/?action=new"
     },
     {
       "name": "Aujourd'hui",
       "short_name": "Aujourd'hui",
       "description": "Voir les événements du jour",
-      "url": "./?view=day"
+      "url": "/TaskWeek/?view=day"
     }
   ],
   "widgets": [
