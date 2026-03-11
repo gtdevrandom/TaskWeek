@@ -1,0 +1,93 @@
+{
+  "$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
+  "type": "AdaptiveCard",
+  "version": "1.3",
+  "body": [
+    {
+      "type": "TextBlock",
+      "text": "📅 Agenda Pro",
+      "weight": "Bolder",
+      "size": "Small",
+      "color": "Accent",
+      "spacing": "None"
+    },
+    {
+      "type": "TextBlock",
+      "text": "${formatDate(today, 'dddd D MMMM')}",
+      "weight": "Bolder",
+      "size": "Medium",
+      "spacing": "None",
+      "wrap": true
+    },
+    {
+      "$when": "${count(todayEvents) == 0}",
+      "type": "TextBlock",
+      "text": "Aucun événement aujourd'hui",
+      "isSubtle": true,
+      "size": "Small",
+      "spacing": "Small"
+    },
+    {
+      "$when": "${count(todayEvents) > 0}",
+      "type": "Container",
+      "spacing": "Small",
+      "items": [
+        {
+          "type": "ColumnSet",
+          "$data": "${todayEvents}",
+          "columns": [
+            {
+              "type": "Column",
+              "width": "3px",
+              "style": "emphasis",
+              "items": []
+            },
+            {
+              "type": "Column",
+              "width": "stretch",
+              "items": [
+                {
+                  "type": "TextBlock",
+                  "text": "${title}",
+                  "weight": "Bolder",
+                  "size": "Small",
+                  "wrap": false,
+                  "maxLines": 1
+                },
+                {
+                  "type": "TextBlock",
+                  "text": "${if(startTime != '', startTime, 'Toute la journée')}${if(endTime != '', ' → ' + endTime, '')}${if(location != '', ' • 📍' + location, '')}",
+                  "isSubtle": true,
+                  "size": "ExtraSmall",
+                  "spacing": "None",
+                  "wrap": false
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "$when": "${count(tomorrowEvents) > 0}",
+      "type": "TextBlock",
+      "text": "Demain : ${join(tomorrowEvents.title, ', ')}",
+      "isSubtle": true,
+      "size": "ExtraSmall",
+      "spacing": "Small",
+      "wrap": true,
+      "maxLines": 1
+    }
+  ],
+  "actions": [
+    {
+      "type": "Action.OpenUrl",
+      "title": "Ouvrir l'agenda",
+      "url": "/"
+    }
+  ],
+  "selectAction": {
+    "type": "Action.OpenUrl",
+    "url": "/"
+  }
+}

@@ -1,16 +1,61 @@
 {
-  "name": "TaskWeek",
-  "short_name": "TaskWeek",
-  "start_url": "./index.html",
+  "name": "Agenda Pro",
+  "short_name": "AgendaPro",
+  "description": "Votre agenda personnel et professionnel",
+  "start_url": "/",
   "display": "standalone",
-  "background_color": "#121212",
-  "theme_color": "#2196f3",
-  "description": "Programme 7 jours pour gérer tes tâches facilement",
+  "background_color": "#0f0f13",
+  "theme_color": "#0f0f13",
+  "orientation": "portrait-primary",
+  "lang": "fr",
   "icons": [
     {
-      "src": "favicon.ico",
+      "src": "icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icons/icon-512.png",
       "sizes": "512x512",
-      "type": "image/x-icon"
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["productivity", "utilities"],
+  "screenshots": [],
+  "shortcuts": [
+    {
+      "name": "Nouvel événement",
+      "short_name": "Nouveau",
+      "description": "Créer un nouvel événement",
+      "url": "/?action=new"
+    },
+    {
+      "name": "Aujourd'hui",
+      "short_name": "Aujourd'hui",
+      "description": "Voir les événements du jour",
+      "url": "/?view=day"
+    }
+  ],
+  "widgets": [
+    {
+      "name": "Agenda Pro – Aujourd'hui",
+      "tag": "agenda-today",
+      "ms_ac_template": "widgets/template.json",
+      "data": "widgets/data.json",
+      "type": "application/json",
+      "screenshots": [],
+      "icons": [
+        {
+          "src": "icons/icon-192.png",
+          "sizes": "192x192"
+        }
+      ],
+      "backgrounds": [],
+      "description": "Affiche les événements du jour sur votre écran d'accueil Android",
+      "auth": false,
+      "update": 3600
     }
   ]
 }
