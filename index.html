@@ -314,6 +314,7 @@
           <div class="view-tab" id="tab-day" onclick="switchView('day')">Jour</div>
           <div class="view-tab" id="tab-list" onclick="switchView('list')">Liste</div>
         </div>
+        <button id="pwa-install-btn" class="add-btn" onclick="triggerInstall()" style="display:none;background:linear-gradient(135deg,#43d9a2,#16a34a);box-shadow:0 4px 12px rgba(67,217,162,.25)"><span>⬇</span> Installer</button>
         <button class="add-btn" onclick="openAddModal()"><span>+</span> Événement</button>
       </div>
     </div>
@@ -1015,6 +1016,37 @@ function fmt(d){return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate
 function pad(n){return String(n).padStart(2,'0');}
 function esc(s){if(!s)return'';return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
 function fmtH(h){if(S.prefs.time24h)return pad(h)+':00';return(h>12?h-12:h)+':00 '+(h>=12?'PM':'AM');}
+
+// === PWA Install Prompt ===
+var deferredInstallPrompt = null;
+
+window.addEventListener('beforeinstallprompt', function(e) {
+  e.preventDefault();
+  deferredInstallPrompt = e;
+  var btn = document.getElementById('pwa-install-btn');
+  if (btn) btn.style.display = 'flex';
+});
+
+window.addEventListener('appinstalled', function() {
+  deferredInstallPrompt = null;
+  var btn = document.getElementById('pwa-install-btn');
+  if (btn) btn.style.display = 'none';
+  showToast('Agenda Pro installé avec succès ! 🎉', 'success');
+});
+
+function triggerInstall() {
+  if (!deferredInstallPrompt) {
+    showToast('Utilisez le menu du navigateur pour installer l\'app', 'info');
+    return;
+  }
+  deferredInstallPrompt.prompt();
+  deferredInstallPrompt.userChoice.then(function(result) {
+    if (result.outcome === 'accepted') showToast('Installation en cours…', 'success');
+    deferredInstallPrompt = null;
+    var btn = document.getElementById('pwa-install-btn');
+    if (btn) btn.style.display = 'none';
+  });
+}
 
 init();
 </script>

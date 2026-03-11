@@ -1,5 +1,5 @@
-const CACHE_NAME = 'agendapro-v2';
-const ASSETS = ['/', '/index.html', '/manifest.json'];
+const CACHE_NAME = 'agendapro-v3';
+const ASSETS = ['./', './index.html', './manifest.json'];
 
 self.addEventListener('install', e => {
   self.skipWaiting();
@@ -25,7 +25,7 @@ self.addEventListener('fetch', e => {
           caches.open(CACHE_NAME).then(c => c.put(e.request, clone));
         }
         return response;
-      }).catch(() => caches.match('/index.html'));
+      }).catch(() => caches.match('./index.html'));
     })
   );
 });
@@ -98,10 +98,8 @@ async function checkAndFireNotifs() {
     if (n.fireAt <= now) {
       await self.registration.showNotification(n.title, {
         body: n.body || '',
-        icon: '/icons/icon-192.png',
-        badge: '/icons/icon-192.png',
-        vibrate: [200, 100, 200, 100, 200],
-        tag: n.tag || n.id,
+        icon: './icons/icon-192.png',
+        badge: './icons/icon-192.png',
         requireInteraction: true,
         data: { url: '/', eventId: n.id },
         actions: [
@@ -133,8 +131,8 @@ self.addEventListener('push', e => {
   const data = e.data ? e.data.json() : {};
   e.waitUntil(self.registration.showNotification(data.title || 'Agenda Pro', {
     body: data.body || '',
-    icon: '/icons/icon-192.png',
-    badge: '/icons/icon-192.png',
+    icon: './icons/icon-192.png',
+    badge: './icons/icon-192.png',
     vibrate: [200, 100, 200],
     tag: data.tag || 'agenda-notif',
     requireInteraction: true,
@@ -163,7 +161,7 @@ self.addEventListener('notificationclick', e => {
   e.waitUntil(
     clients.matchAll({ type: 'window', includeUncontrolled: true }).then(list => {
       for (const c of list) { if ('focus' in c) return c.focus(); }
-      if (clients.openWindow) return clients.openWindow('/');
+      if (clients.openWindow) return clients.openWindow('./');
     })
   );
 });
@@ -189,5 +187,5 @@ self.addEventListener('widgetresume', e => {
   e.waitUntil(updateWidget());
 });
 self.addEventListener('widgetclick', e => {
-  e.waitUntil(clients.openWindow('/').catch(()=>{}));
+  e.waitUntil(clients.openWindow('./').catch(()=>{}));
 });
